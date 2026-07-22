@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+  body {
+    @apply bg-parchment text-ink font-body antialiased;
+  }
+  ::selection {
+    @apply bg-marigold/40;
+  }
+  :focus-visible {
+    outline: 2px solid #A63A2C;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .eyebrow {
+    @apply text-[11px] font-mono uppercase tracking-[0.18em] text-slateink;
+  }
+
+  .file-card {
+    @apply relative bg-white/80 border border-ink/10 rounded-sm shadow-card;
+  }
+
+  .file-card::before {
+    content: "";
+    @apply absolute -top-[6px] left-4 w-10 h-[6px] bg-parchment-dark border border-b-0 border-ink/10 rounded-t-sm;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-ink text-parchment px-4 py-2.5 rounded-sm font-medium text-sm tracking-wide hover:bg-ink-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-transparent text-ink border border-ink/25 px-4 py-2.5 rounded-sm font-medium text-sm tracking-wide hover:bg-ink/5 transition-colors;
+  }
+
+  .btn-seal {
+    @apply inline-flex items-center justify-center gap-2 bg-seal text-parchment px-4 py-2.5 rounded-sm font-medium text-sm tracking-wide hover:bg-seal-dark transition-colors;
+  }
+
+  .input-field {
+    @apply w-full bg-white border border-ink/15 rounded-sm px-3.5 py-2.5 text-sm text-ink placeholder:text-slateink/60 focus:border-seal focus:ring-1 focus:ring-seal/30 outline-none transition-colors;
+  }
+
+  .stamp-ring {
+    box-shadow: 0 0 0 3px rgba(166,58,44,0.12);
+  }
+}
+
+@keyframes stamp-in {
+  0% { transform: scale(2.2) rotate(-14deg); opacity: 0; }
+  55% { transform: scale(0.92) rotate(-8deg); opacity: 1; }
+  75% { transform: scale(1.05) rotate(-10deg); }
+  100% { transform: scale(1) rotate(-10deg); opacity: 1; }
+}
+.animate-stamp {
+  animation: stamp-in 0.5s cubic-bezier(.2,.8,.3,1.2) both;
+}
