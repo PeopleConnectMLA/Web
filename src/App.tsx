@@ -13,7 +13,7 @@ import type { Role } from "./types";
 function Protected({ children, roles }: { children: ReactNode; roles?: Role[] }) {
   const { session } = useAuth();
   if (!session) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(session.role)) return <Navigate to="/dashboard" replace />;
+  if (roles && !roles.includes(session?.user?.role as Role)) return <Navigate to="/dashboard" replace />;
   return <Layout>{children}</Layout>;
 }
 

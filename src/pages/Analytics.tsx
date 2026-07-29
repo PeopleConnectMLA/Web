@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
-import { getAnalytics } from "../api/client";
 import { PageHeader, StatCard } from "../components/Ui";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import type { AnalyticsResponse } from "../types";
+import { getAnalytics } from "../services";
 
 const COLORS = ["#A63A2C", "#D9A02A", "#2E5339", "#1B2740", "#5B6472", "#C24E3D", "#3E6B4B", "#28395c"];
 
 export default function Analytics() {
   const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null);
-
+  const userId = sessionStorage.getItem('userId')
+  
   useEffect(() => {
-    getAnalytics().then(setAnalytics);
-  }, []);
+    getAnalytics(userId).then((res) => {
+      setAnalytics(res?.data ?? {});
+    });
+  }, [userId]);
 
   if (!analytics) return <p className="text-slateink text-sm">Loading analytics…</p>;
 

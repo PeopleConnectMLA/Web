@@ -19,7 +19,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const { session, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const nav = session?.role === "ADMIN" ? ADMIN_NAV : MLA_NAV;
+  const nav = session?.user?.role === "ADMIN" ? ADMIN_NAV : MLA_NAV;
 
   function handleLogout() {
     logout();
@@ -27,7 +27,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen flex bg-parchment bg-grain bg-grain">
+    <div className="min-h-screen flex bg-parchment bg-grain">
       {/* Sidebar */}
       <aside className={`fixed lg:static z-30 inset-y-0 left-0 w-64 bg-ink text-parchment flex flex-col transition-transform duration-200 ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         <div className="flex items-center gap-3 px-5 py-6 border-b border-parchment/10">
@@ -62,8 +62,8 @@ export default function Layout({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="px-5 py-5 border-t border-parchment/10">
-          <p className="text-sm font-medium">{session?.name}</p>
-          <p className="text-[11px] font-mono uppercase tracking-wide text-parchment/50 mb-3">{session?.role}</p>
+          <p className="text-sm font-medium">{session?.user?.name}</p>
+          <p className="text-[11px] font-mono uppercase tracking-wide text-parchment/50 mb-3">{session?.user?.role}</p>
           <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-parchment/60 hover:text-parchment transition-colors">
             <LogOut size={15} /> Sign out
           </button>
@@ -85,7 +85,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             <Menu size={20} />
           </button>
         </header>
-        <main className="flex-1 px-4 sm:px-6 lg:px-10 py-6 lg:py-9 max-w-7xl w-full mx-auto">
+        <main className="flex-1 px-4 sm:px-6 lg:px-10 py-6 lg:py-9 max-w w-full mx-auto">
           {children}
         </main>
       </div>

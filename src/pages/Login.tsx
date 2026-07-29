@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Seal from "../components/Seal";
 import { useAuth } from "../context/AuthContext";
-import { isDemoMode } from "../api/client";
 import type { Role } from "../types";
 
 const ROLES: { id: Role; label: string; desc: string }[] = [
@@ -14,7 +13,7 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [role, setRole] = useState<Role>("MLA");
-  const [mobile, setMobile] = useState("9840012345");
+  const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,8 +23,15 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      await login(mobile, password, role);
-      navigate(role === "ADMIN" ? "/admin" : "/dashboard");
+      const res = await login(mobile, password, role);
+      console.log(res?.user?.role);
+      
+      if (res?.user?.role === 'MLA') {
+        navigate("/dashboard");
+      } else {
+        navigate("/admin");
+      }
+      // navigate(role === "ADMIN" ? "/admin" : "/dashboard");
     } catch (err) {
       setError(err?.response?.data?.message || "Invalid mobile number or password.");
     } finally {
@@ -46,21 +52,20 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="bg-parchment rounded-sm shadow-card p-7">
           <p className="eyebrow mb-3">Sign in as</p>
-          <div className="grid grid-cols-2 gap-2 mb-6">
+          {/* <div className="grid grid-cols-2 gap-2 mb-6">
             {ROLES.map((r) => (
               <button
                 type="button"
                 key={r.id}
                 onClick={() => setRole(r.id)}
-                className={`text-left px-3.5 py-3 rounded-sm border transition-colors ${
-                  role === r.id ? "border-seal bg-seal/5" : "border-ink/12 hover:border-ink/25"
-                }`}
+                className={`text-left px-3.5 py-3 rounded-sm border transition-colors ${role === r.id ? "border-seal bg-seal/5" : "border-ink/12 hover:border-ink/25"
+                  }`}
               >
                 <p className="text-sm font-semibold text-ink">{r.label}</p>
                 <p className="text-xs text-slateink mt-0.5">{r.desc}</p>
               </button>
             ))}
-          </div>
+          </div> */}
 
           <label className="block mb-4">
             <span className="text-xs font-medium text-ink/70 mb-1.5 block">Mobile number</span>
@@ -79,7 +84,7 @@ export default function Login() {
               className="input-field"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={isDemoMode ? "any value works in demo mode" : "Password"}
+              placeholder={"Password"}
             />
           </label>
 
@@ -88,14 +93,6 @@ export default function Login() {
           <button type="submit" disabled={loading} className="btn-seal w-full mt-6">
             {loading ? "Verifying…" : "Sign in"}
           </button>
-
-          {isDemoMode && (
-            <p className="text-[11px] text-slateink mt-4 text-center leading-relaxed">
-              Running in demo mode against seed data — no backend connected.
-              Set <code className="font-mono bg-ink/5 px-1 py-0.5 rounded-sm">VITE_API_URL</code> in
-              <code className="font-mono bg-ink/5 px-1 py-0.5 rounded-sm ml-1">.env</code> to connect the live API.
-            </p>
-          )}
         </form>
       </div>
     </div>

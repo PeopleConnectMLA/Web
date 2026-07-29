@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X, MapPin, User, Calendar, Users2 } from "lucide-react";
 import { StatusBadge, PriorityBadge, CategoryTag } from "./Badges";
-import { getOfficers, updateComplaintStatus } from "../api/client";
 import type { Complaint, ComplaintStatus, Officer } from "../types";
+import { getAllOfficersByConstituencyId, updateComplaintStatus } from "../services";
+import { SearchableSelect } from "./SearchableSelect";
 
 const STATUS_FLOW: ComplaintStatus[] = ["NEW", "RECEIVED", "IN_PROGRESS", "RESOLVED"];
 
@@ -14,17 +15,42 @@ interface ComplaintDrawerProps {
 
 export default function ComplaintDrawer({ complaint, onClose, onUpdated }: ComplaintDrawerProps) {
   const [officers, setOfficers] = useState<Officer[]>([]);
+  const [officersLoading, setOfficersLoading] = useState(false);
   const [status, setStatus] = useState<ComplaintStatus>(complaint.status);
   const [remarks, setRemarks] = useState("");
   const [officerId, setOfficerId] = useState("");
   const [saving, setSaving] = useState(false);
   const [justResolved, setJustResolved] = useState(false);
+  const constituencyId = sessionStorage.getItem('constituencyId')
 
   useEffect(() => {
-    getOfficers().then(setOfficers);
+    const loadOfficers = async () => {
+      setOfficersLoading(true);
+      try {
+        const res = await getAllOfficersByConstituencyId(constituencyId);
+        console.log(res?.data);
+        setOfficers(res?.data ?? []);
+      } finally {
+        setOfficersLoading(false);
+      }
+    };
+
+    loadOfficers();
+
     setStatus(complaint.status);
+    setOfficerId("");
     setJustResolved(false);
-  }, [complaint]);
+  }, [complaint, constituencyId]);
+
+  const officerOptions = useMemo(
+    () =>
+      officers.map((o) => ({
+        id: String(o.id),
+        label: o.name,
+        sublabel: o.wardName ?? o.constituencyName ?? o.districtName,
+      })),
+    [officers]
+  );
 
   async function handleSave() {
     setSaving(true);
@@ -37,6 +63,7 @@ export default function ComplaintDrawer({ complaint, onClose, onUpdated }: Compl
       if (status === "RESOLVED" && complaint.status !== "RESOLVED") setJustResolved(true);
       onUpdated({ ...complaint, ...updated, status });
       setRemarks("");
+      onClose()
     } finally {
       setSaving(false);
     }
@@ -101,12 +128,16 @@ export default function ComplaintDrawer({ complaint, onClose, onUpdated }: Compl
 
             <label className="block mb-3">
               <span className="text-xs font-medium text-ink/70 mb-1.5 block">Assign officer (optional)</span>
-              <select className="input-field" value={officerId} onChange={(e) => setOfficerId(e.target.value)}>
-                <option value="">— No change —</option>
-                {officers.map((o) => (
-                  <option key={o.id} value={o.id}>{o.name}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                options={officerOptions}
+                value={officerId}
+                onChange={setOfficerId}
+                loading={officersLoading}
+                placeholder="— No change —"
+                searchPlaceholder="Search officers..."
+                emptyLabel="No officers found"
+                triggerClassName="input-field"
+              />
             </label>
 
             <label className="block mb-5">
