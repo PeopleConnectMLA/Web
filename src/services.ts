@@ -294,7 +294,7 @@ export async function getAnalytics(mlaId: string) {
 
 export async function getComplaints(mlaId: string) {
     try {
-        let endPoint = `complaints/mla/${mlaId}`;
+        let endPoint = `complaints/mla/${2}`;
         let response = await instance.get(endPoint);
         return response;
     } catch (e) {
@@ -360,6 +360,16 @@ export async function createPost(mlaId: string, payload: CreatePostPayload) {
     try {
         let endPoint = `posts/mla/${mlaId}`;
         let response = await instance.post(endPoint, payload);
+        return response;
+    } catch (e) {
+        console.log(e + ' Occured! Please Try again');
+    }
+}
+
+export async function getOfficerComplaintsAPI(officerId: string) {
+    try {
+        let endPoint = `complaints/officer/${officerId}`;
+        let response = await instance.get(endPoint);
         return response;
     } catch (e) {
         console.log(e + ' Occured! Please Try again');

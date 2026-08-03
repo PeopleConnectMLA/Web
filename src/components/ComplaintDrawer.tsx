@@ -5,7 +5,7 @@ import type { Complaint, ComplaintStatus, Officer } from "../types";
 import { getAllOfficersByConstituencyId, updateComplaintStatus } from "../services";
 import { SearchableSelect } from "./SearchableSelect";
 
-const STATUS_FLOW: ComplaintStatus[] = ["NEW", "RECEIVED", "IN_PROGRESS", "RESOLVED"];
+const STATUS_FLOW: ComplaintStatus[] = ["NEW", "RECEIVED", "IN_PROGRESS", "RESOLVED", "REJECTED"];
 
 interface ComplaintDrawerProps {
   complaint: Complaint;
@@ -14,11 +14,14 @@ interface ComplaintDrawerProps {
 }
 
 export default function ComplaintDrawer({ complaint, onClose, onUpdated }: ComplaintDrawerProps) {
+
+  console.log(complaint);
+  
   const [officers, setOfficers] = useState<Officer[]>([]);
   const [officersLoading, setOfficersLoading] = useState(false);
   const [status, setStatus] = useState<ComplaintStatus>(complaint.status);
   const [remarks, setRemarks] = useState("");
-  const [officerId, setOfficerId] = useState("");
+  const [officerId, setOfficerId] = useState(complaint?.assignedOfficer);
   const [saving, setSaving] = useState(false);
   const [justResolved, setJustResolved] = useState(false);
   const constituencyId = sessionStorage.getItem('constituencyId')
@@ -38,7 +41,7 @@ export default function ComplaintDrawer({ complaint, onClose, onUpdated }: Compl
     loadOfficers();
 
     setStatus(complaint.status);
-    setOfficerId("");
+    setOfficerId(complaint?.assignOfficerId? String(complaint.assignOfficerId) : "");    
     setJustResolved(false);
   }, [complaint, constituencyId]);
 
@@ -51,7 +54,7 @@ export default function ComplaintDrawer({ complaint, onClose, onUpdated }: Compl
       })),
     [officers]
   );
-
+  
   async function handleSave() {
     setSaving(true);
     try {

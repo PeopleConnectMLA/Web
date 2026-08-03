@@ -25,9 +25,11 @@ export default function Login() {
     try {
       const res = await login(mobile, password, role);
       console.log(res?.user?.role);
-      
+
       if (res?.user?.role === 'MLA') {
         navigate("/dashboard");
+      } else if (res?.user?.role === 'OFFICER') {
+        navigate('/OfficierComplaints')
       } else {
         navigate("/admin");
       }

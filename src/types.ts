@@ -62,6 +62,7 @@ export interface Complaint {
   createdDate: string;
   resolvedDate?: string;
   assignedOfficer?: string;
+  assignOfficerId?:number;
 }
 
 export interface Comment {

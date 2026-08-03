@@ -11,6 +11,11 @@ const MLA_NAV = [
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
+const OFF_NAV = [
+  { to: "/OfficierComplaints", label: "Grievance Register", icon: FileWarning },
+];
+
+
 const ADMIN_NAV = [
   { to: "/admin", label: "Admin Panel", icon: ShieldCheck },
 ];
@@ -19,7 +24,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const { session, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const nav = session?.user?.role === "ADMIN" ? ADMIN_NAV : MLA_NAV;
+  const nav = session?.user?.role === "ADMIN" ? ADMIN_NAV : session?.user?.role === 'MLA' ? MLA_NAV : OFF_NAV;
 
   function handleLogout() {
     logout();
@@ -48,10 +53,9 @@ export default function Layout({ children }: { children: ReactNode }) {
               to={to}
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-sm text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-parchment/10 text-parchment border-l-2 border-marigold pl-[10px]"
-                    : "text-parchment/60 hover:text-parchment hover:bg-parchment/5"
+                `flex items-center gap-3 px-3 py-2.5 rounded-sm text-sm font-medium transition-colors ${isActive
+                  ? "bg-parchment/10 text-parchment border-l-2 border-marigold pl-[10px]"
+                  : "text-parchment/60 hover:text-parchment hover:bg-parchment/5"
                 }`
               }
             >

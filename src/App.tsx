@@ -9,6 +9,7 @@ import Posts from "./pages/Posts";
 import Analytics from "./pages/Analytics";
 import Admin from "./pages/Admin";
 import type { Role } from "./types";
+import OfficierComplaints from "./pages/OfficierComplaints";
 
 function Protected({ children, roles }: { children: ReactNode; roles?: Role[] }) {
   const { session } = useAuth();
@@ -26,6 +27,7 @@ function AppRoutes() {
       <Route path="/posts" element={<Protected roles={["MLA"]}><Posts /></Protected>} />
       <Route path="/analytics" element={<Protected roles={["MLA"]}><Analytics /></Protected>} />
       <Route path="/admin" element={<Protected roles={["ADMIN"]}><Admin /></Protected>} />
+      <Route path="/OfficierComplaints" element={<Protected roles={["OFFICER"]}><OfficierComplaints /></Protected>} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
