@@ -14,7 +14,16 @@ import OfficierComplaints from "./pages/OfficierComplaints";
 function Protected({ children, roles }: { children: ReactNode; roles?: Role[] }) {
   const { session } = useAuth();
   if (!session) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(session?.user?.role as Role)) return <Navigate to="/dashboard" replace />;
+  if (roles && !roles.includes(session?.user?.role as Role)) {
+    // Redirect officer to their dedicated portal route if restricted
+    if (session?.user?.role === "OFFICER") {
+      return <Navigate to="/OfficierComplaints" replace />;
+    }
+    if (session?.user?.role === "ADMIN") {
+      return <Navigate to="/admin" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
+  }
   return <Layout>{children}</Layout>;
 }
 
@@ -22,12 +31,54 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/dashboard" element={<Protected roles={["MLA"]}><Dashboard /></Protected>} />
-      <Route path="/complaints" element={<Protected roles={["MLA"]}><Complaints /></Protected>} />
-      <Route path="/posts" element={<Protected roles={["MLA"]}><Posts /></Protected>} />
-      <Route path="/analytics" element={<Protected roles={["MLA"]}><Analytics /></Protected>} />
-      <Route path="/admin" element={<Protected roles={["ADMIN"]}><Admin /></Protected>} />
-      <Route path="/OfficierComplaints" element={<Protected roles={["OFFICER"]}><OfficierComplaints /></Protected>} />
+      <Route
+        path="/dashboard"
+        element={
+          <Protected roles={["MLA"]}>
+            <Dashboard />
+          </Protected>
+        }
+      />
+      <Route
+        path="/complaints"
+        element={
+          <Protected roles={["MLA"]}>
+            <Complaints />
+          </Protected>
+        }
+      />
+      <Route
+        path="/posts"
+        element={
+          <Protected roles={["MLA"]}>
+            <Posts />
+          </Protected>
+        }
+      />
+      <Route
+        path="/analytics"
+        element={
+          <Protected roles={["MLA"]}>
+            <Analytics />
+          </Protected>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <Protected roles={["ADMIN"]}>
+            <Admin />
+          </Protected>
+        }
+      />
+      <Route
+        path="/OfficierComplaints"
+        element={
+          <Protected roles={["OFFICER"]}>
+            <OfficierComplaints />
+          </Protected>
+        }
+      />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

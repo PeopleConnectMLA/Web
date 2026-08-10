@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   ArrowUpRight,
   Phone,
@@ -9,84 +9,56 @@ import {
   Trash2,
   Construction,
   CircleDot,
+  Loader2,
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { getComplaints, getMlaProfile } from "../services";
 
-// ---------------------------------------------------------------------------
-// Design tokens — "Official Register" system (kept as a reference map for
-// values Tailwind's default palette can't express — banyan green, marigold,
-// stamp red, and the warm ledger-paper neutrals).
-// ---------------------------------------------------------------------------
-const tokens = {
-  ink: "#1C2420",
-  inkSoft: "#3A4440",
-  paper: "#F3F0E6",
-  paperRaised: "#FBF9F2",
-  line: "#DDD6C2",
-  banyan: "#2F6B54",
-  banyanSoft: "#E4EEE7",
-  marigold: "#C97D24",
-  seal: "#A23B2E",
-  sealSoft: "#F2E0DB",
-  slate: "#6B6558",
+export interface ProfileData {
+  id: number;
+  name: string;
+  party: string;
+  constituencyId: string;
+  constituencyName: string;
+  districtId: string;
+  districtName: string;
+  phone: string;
+  officeAddress: string;
+  bio: string;
+  photoUrl: string;
+  verified: boolean;
+}
+
+export interface ComplaintItem {
+  id: number;
+  title: string;
+  category: string;
+  citizenName: string;
+  priority: "LOW" | "MEDIUM" | "HIGH";
+  status: string;
+  createdDate: string;
+}
+
+const categoryMeta: Record<string, { icon: any; label: string; color: string; bg: string }> = {
+  ELECTRICITY: { icon: Zap, label: "Electricity", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+  WATER: { icon: Droplets, label: "Water", color: "text-cyan-400", bg: "bg-cyan-500/10 border-cyan-500/20" },
+  SANITATION: { icon: Trash2, label: "Sanitation", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+  ROAD: { icon: Construction, label: "Road", color: "text-orange-400", bg: "bg-orange-500/10 border-orange-500/20" },
+  OTHER: { icon: CircleDot, label: "Other", color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20" },
 };
 
-const fontImport = `
-@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
-`;
-
-// ---------------------------------------------------------------------------
-// Sample data — shaped exactly like the real API responses
-// ---------------------------------------------------------------------------
-const analytics = {
-  categoryBreakdown: { ELECTRICITY: 2, OTHER: 1, ROAD: 1, SANITATION: 1, WATER: 2 },
-  inProgressComplaints: 0,
-  pendingComplaints: 7,
-  resolutionRatePercent: 0,
-  resolvedComplaints: 0,
-  totalComplaints: 7,
-};
-
-const profile = {
-  bio: "MLA representing the Thoothukudi Assembly Constituency, committed to improving public infrastructure and citizen services.",
-  constituencyName: "Thoothukkudi",
-  districtName: "Thoothukudi",
-  name: "Srinath",
-  officeAddress: "Near Collector Office, Thoothukudi, Tamil Nadu - 628001",
-  party: "Independent",
-  phone: "9345678901",
-  photoUrl:
-    "https://media.dinamani.com/dinamani/2026-03-29/2raptv5o/tut29tvk_srinath_2903chn_32_6.jpg?w=1200&q=65&auto=format%2Ccompress&fit=max",
-  verified: true,
-};
-
-const complaints = [
-  { id: 7, title: "More problem", category: "OTHER", citizenName: "Arockia Wilfread", priority: "LOW", status: "NEW", createdDate: "2026-07-29T18:10:11" },
-  { id: 6, title: "Streetlight not working on Velachery Main Road", category: "ELECTRICITY", citizenName: "System Administrator", priority: "LOW", status: "NEW", createdDate: "2026-07-29T17:56:45" },
-  { id: 5, title: "No drinking water supply", category: "WATER", citizenName: "System Administrator", priority: "MEDIUM", status: "NEW", createdDate: "2026-07-26T22:50:27" },
-  { id: 4, title: "Garbage not collected", category: "SANITATION", citizenName: "System Administrator", priority: "LOW", status: "NEW", createdDate: "2026-07-26T22:50:04" },
-  { id: 3, title: "Drainage overflow near market", category: "WATER", citizenName: "System Administrator", priority: "MEDIUM", status: "NEW", createdDate: "2026-07-26T22:49:56" },
-];
-
-const categoryMeta = {
-  ELECTRICITY: { icon: Zap, label: "Electricity" },
-  WATER: { icon: Droplets, label: "Water" },
-  SANITATION: { icon: Trash2, label: "Sanitation" },
-  ROAD: { icon: Construction, label: "Road" },
-  OTHER: { icon: CircleDot, label: "Other" },
-};
-
-const priorityMeta = {
-  LOW: { hex: tokens.banyan, label: "Low" },
-  MEDIUM: { hex: tokens.marigold, label: "Medium" },
-  HIGH: { hex: tokens.seal, label: "High" },
-};
-
-function docketNumber(id) {
+function docketNumber(id: number) {
   return `CMP-2026-${String(id).padStart(4, "0")}`;
 }
 
-function timeAgo(iso) {
+function timeAgo(iso: string) {
+  if (!iso) return "recently";
   const diff = Date.now() - new Date(iso).getTime();
   const hrs = Math.floor(diff / 3600000);
   if (hrs < 1) return "just now";
@@ -95,247 +67,388 @@ function timeAgo(iso) {
   return `${days}d ago`;
 }
 
-// ---------------------------------------------------------------------------
-// Small building blocks
-// ---------------------------------------------------------------------------
-function Stamp({ value, label, dotHex }) {
+function StatusBadge({ status }: { status: string }) {
+  const s = status?.toUpperCase();
+  if (s === "RESOLVED") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        <CheckCircle2 size={12} /> Resolved
+      </span>
+    );
+  }
+  if (s === "IN_PROGRESS") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+        <Clock size={12} /> In Progress
+      </span>
+    );
+  }
+  if (s === "RECEIVED") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+        <FileText size={12} /> Received
+      </span>
+    );
+  }
   return (
-    <div className="relative w-full overflow-hidden rounded-[4px] border border-[#DDD6C2] bg-[#FBF9F2] px-[18px] pb-4 pt-[18px]">
-      <div
-        className="absolute right-[10px] top-[10px] h-2 w-2 rounded-full"
-        style={{ background: dotHex }}
-      />
-      <p className="mb-2.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[#6B6558]">
-        {label}
-      </p>
-      <p className="font-serif text-[34px] font-semibold leading-none text-[#1C2420]">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function CategoryTag({ category }) {
-  const meta = categoryMeta[category] || categoryMeta.OTHER;
-  const Icon = meta.icon;
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-[3px] border border-[#DDD6C2] bg-[#F3F0E6] py-[3px] pl-1.5 pr-2 font-mono text-[10.5px] uppercase tracking-[0.04em] text-[#3A4440]">
-      <Icon size={11} strokeWidth={2} />
-      {meta.label}
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+      <AlertCircle size={12} /> Unresolved
     </span>
   );
 }
 
-function PriorityDot({ priority }) {
-  const meta = priorityMeta[priority] || priorityMeta.LOW;
+function PriorityBadge({ priority }: { priority: string }) {
+  const p = priority?.toUpperCase();
+  let dotColor = "bg-emerald-400";
+  let label = "Low";
+
+  if (p === "HIGH") {
+    dotColor = "bg-rose-500";
+    label = "High";
+  } else if (p === "MEDIUM") {
+    dotColor = "bg-amber-400";
+    label = "Medium";
+  }
+
   return (
-    <span className="inline-flex items-center gap-[5px] text-[11px] text-[#6B6558]">
-      <span
-        className="inline-block h-1.5 w-1.5 rounded-full"
-        style={{ background: meta.hex }}
-      />
-      {meta.label} priority
+    <span className="inline-flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+      <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+      {label}
     </span>
   );
 }
 
-function StatusStamp({ status }) {
-  const isNew = status === "NEW";
-  return (
-    <div
-      className={`inline-block -rotate-2 rounded-[3px] border-[1.5px] px-[9px] py-[3px] font-mono text-[10px] font-semibold tracking-[0.06em] ${isNew
-          ? "border-[#A23B2E] bg-[#F2E0DB] text-[#A23B2E]"
-          : "border-[#2F6B54] bg-[#E4EEE7] text-[#2F6B54]"
-        }`}
-    >
-      {isNew ? "UNRESOLVED" : status}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main dashboard
-// ---------------------------------------------------------------------------
 export default function Dashboard() {
-  const [hoveredRow, setHoveredRow] = useState(null);
+  const { session } = useAuth();
+  const mlaQueryId = session?.user?.id || 1;
+
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [complaints, setComplaints] = useState<ComplaintItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboard() {
+      if (!mlaQueryId) return;
+      setLoading(true);
+      try {
+        // 1. Fetch MLA profile from API
+        const profileRes = await getMlaProfile(mlaQueryId);
+        const fetchedProfile = profileRes?.data;
+        if (fetchedProfile) {
+          setProfile(fetchedProfile);
+        }
+
+        // 2. Fetch complaints from API using MLA ID
+        const targetId = fetchedProfile?.id || mlaQueryId;
+        const complaintsRes = await getComplaints(targetId);
+        if (complaintsRes?.data) {
+          setComplaints(Array.isArray(complaintsRes.data) ? complaintsRes.data.slice(0, 6) : []);
+        }
+      } catch (err) {
+        console.error("Dashboard data load error:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboard();
+  }, [mlaQueryId]);
+
+  // Dynamic analytics calculated directly from complaints API response
+  const analytics = useMemo(() => {
+    const total = complaints.length;
+    const resolved = complaints.filter((c) => c.status?.toUpperCase() === "RESOLVED").length;
+    const inProgress = complaints.filter((c) => c.status?.toUpperCase() === "IN_PROGRESS").length;
+    const pending = complaints.filter(
+      (c) => c.status?.toUpperCase() === "NEW" || c.status?.toUpperCase() === "PENDING" || c.status?.toUpperCase() === "UNRESOLVED"
+    ).length;
+
+    const breakdown: Record<string, number> = {
+      ELECTRICITY: 0,
+      WATER: 0,
+      SANITATION: 0,
+      ROAD: 0,
+      OTHER: 0,
+    };
+
+    complaints.forEach((c) => {
+      const cat = c.category?.toUpperCase() || "OTHER";
+      breakdown[cat] = (breakdown[cat] || 0) + 1;
+    });
+
+    return {
+      totalComplaints: total,
+      resolvedComplaints: resolved,
+      inProgressComplaints: inProgress,
+      pendingComplaints: pending,
+      categoryBreakdown: breakdown,
+    };
+  }, [complaints]);
+
+  // Loading or empty profile state
+  if (loading || !profile) {
+    return (
+      <div className="min-h-screen w-full bg-slate-950 flex items-center justify-center p-8">
+        <div className="flex flex-col items-center gap-3 text-slate-300">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+          <p className="font-mono text-xs uppercase tracking-widest text-slate-500">
+            Loading Dashboard Data...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-full w-full  bg-[#F3F0E6] font-sans">
-      <style>{fontImport}</style>
-      <style>{`
-        .register-serif { font-family: 'Source Serif 4', serif; }
-        .register-mono { font-family: 'IBM Plex Mono', monospace; }
-        .register-sans { font-family: 'Inter', sans-serif; }
-      `}</style>
-
-      <div className="register-sans mx-auto w-full">
-        {/* ---------------- Header ---------------- */}
-        <div className="mb-7 flex w-full flex-wrap items-end justify-between gap-4 border-b-2 border-[#1C2420] pb-5">
+    <div className="min-h-screen w-full bg-slate-950 text-slate-100 p-6 md:p-8 font-sans">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* ---------------- Header Section ---------------- */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-slate-800/80">
           <div>
-            <p className="register-mono mb-2 text-[11px] uppercase tracking-[0.14em] text-[#A23B2E]">
-              Constituency Register · {profile.districtName} District
-            </p>
-            <h1 className="register-serif m-0 text-4xl font-bold tracking-[-0.01em] text-[#1C2420]">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono uppercase font-bold tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                {profile.districtName} District
+              </span>
+              <span className="text-xs text-slate-500 font-mono">· Constituency Register</span>
+            </div>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
               {profile.constituencyName} Dashboard
             </h1>
-            <p className="mt-1.5 text-sm text-[#6B6558]">
-              {profile.name} · {profile.party}
+            <p className="text-slate-400 text-sm mt-1">
+              Representative <span className="text-white font-semibold">{profile.name}</span> · {profile.party} Party
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <img
-              src={profile.photoUrl}
-              alt={profile.name}
-              className="h-14 w-14 rounded-[4px] border border-[#DDD6C2] object-cover"
-            />
+          <div className="flex items-center gap-3 bg-slate-900/90 border border-slate-800 p-2.5 rounded-2xl shadow-xl">
+            {profile.photoUrl && (
+              <img
+                src={profile.photoUrl}
+                alt={profile.name}
+                className="w-12 h-12 rounded-xl object-cover border border-slate-700"
+              />
+            )}
+            <div className="pr-3">
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-bold text-white">{profile.name}</span>
+                {profile.verified && (
+                  <BadgeCheck className="w-4 h-4 text-blue-400 fill-blue-400/20" />
+                )}
+              </div>
+              <span className="text-xs text-slate-400 font-mono">MLA Office</span>
+            </div>
           </div>
         </div>
 
-        {/* ---------------- Stat stamps ---------------- */}
-        <div className="mb-9 grid w-full grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
-          <Stamp value={analytics.totalComplaints} label="Total filed" dotHex={tokens.ink} />
-          <Stamp value={analytics.resolvedComplaints} label="Resolved" dotHex={tokens.banyan} />
-          <Stamp value={analytics.inProgressComplaints} label="In progress" dotHex={tokens.marigold} />
-          <Stamp value={analytics.pendingComplaints} label="Pending" dotHex={tokens.seal} />
+        {/* ---------------- Stat Cards Grid ---------------- */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Filed Card */}
+          <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-5 relative overflow-hidden group hover:border-slate-700 transition-all shadow-xl">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">Total Filed</span>
+              <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <FileText size={18} />
+              </div>
+            </div>
+            <div className="mt-4 flex items-baseline justify-between">
+              <span className="text-3xl font-extrabold text-white tracking-tight">{analytics.totalComplaints}</span>
+              <span className="text-xs font-medium text-emerald-400 flex items-center gap-0.5">
+                <TrendingUp size={14} /> Live
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">All received citizen grievances</p>
+          </div>
+
+          {/* Resolved Card */}
+          <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-5 relative overflow-hidden group hover:border-slate-700 transition-all shadow-xl">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">Resolved</span>
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <CheckCircle2 size={18} />
+              </div>
+            </div>
+            <div className="mt-4 flex items-baseline justify-between">
+              <span className="text-3xl font-extrabold text-emerald-400 tracking-tight">{analytics.resolvedComplaints}</span>
+              <span className="text-xs font-medium text-slate-400 font-mono">
+                {analytics.totalComplaints > 0 ? Math.round((analytics.resolvedComplaints / analytics.totalComplaints) * 100) : 0}% rate
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Action completed successfully</p>
+          </div>
+
+          {/* In Progress Card */}
+          <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-5 relative overflow-hidden group hover:border-slate-700 transition-all shadow-xl">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">In Progress</span>
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <Clock size={18} />
+              </div>
+            </div>
+            <div className="mt-4 flex items-baseline justify-between">
+              <span className="text-3xl font-extrabold text-amber-400 tracking-tight">{analytics.inProgressComplaints}</span>
+              <span className="text-xs font-medium text-amber-400">Active</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Assigned to department officer</p>
+          </div>
+
+          {/* Pending Card */}
+          <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-5 relative overflow-hidden group hover:border-slate-700 transition-all shadow-xl">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">Pending Review</span>
+              <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                <AlertCircle size={18} />
+              </div>
+            </div>
+            <div className="mt-4 flex items-baseline justify-between">
+              <span className="text-3xl font-extrabold text-rose-400 tracking-tight">{analytics.pendingComplaints}</span>
+              <span className="text-xs font-medium text-rose-400 font-mono">Needs Action</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Awaiting officer allocation</p>
+          </div>
         </div>
 
-        <div className="grid w-full grid-cols-1 gap-7 lg:grid-cols-[1.7fr_1fr]">
-          {/* ---------------- Case register ---------------- */}
-          <div className="w-full">
-            <div className="mb-3 flex w-full items-baseline justify-between">
-              <p className="register-mono text-[11px] uppercase tracking-[0.1em] text-[#6B6558]">
-                Latest submissions
-              </p>
+        {/* ---------------- Main Split Grid ---------------- */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Submissions List (2 Columns) */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-white">Latest Submissions</h3>
+                <p className="text-xs text-slate-400">Recent citizen complaints filed in constituency</p>
+              </div>
               <Link
                 to="/complaints"
-                className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#2F6B54] no-underline"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 px-3 py-1.5 rounded-xl border border-blue-500/20"
               >
-                View full register <ArrowUpRight size={13} />
+                Full Register <ArrowUpRight size={14} />
               </Link>
             </div>
 
-            <div className="w-full rounded-[4px] border border-[#DDD6C2] bg-[#FBF9F2]">
-              {complaints.map((c, i) => (
-                <div
-                  key={c.id}
-                  onMouseEnter={() => setHoveredRow(c.id)}
-                  onMouseLeave={() => setHoveredRow(null)}
-                  className={`flex w-full gap-4 px-[18px] py-4 transition-colors duration-150 ${i < complaints.length - 1 ? "border-b border-dashed border-[#DDD6C2]" : ""
-                    } ${hoveredRow === c.id ? "bg-[#F3F0E6]" : "bg-transparent"}`}
-                >
-                  <div className="w-24 flex-shrink-0 pt-0.5">
-                    <p className="register-mono text-[11px] font-semibold text-[#6B6558]">
-                      {docketNumber(c.id)}
-                    </p>
-                    <p className="register-mono mt-0.5 text-[10px] text-[#6B6558] opacity-70">
-                      {timeAgo(c.createdDate)}
-                    </p>
-                  </div>
+            <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl divide-y divide-slate-800/60 shadow-xl overflow-hidden">
+              {complaints.map((c) => {
+                const catMeta = categoryMeta[c.category?.toUpperCase()] || categoryMeta.OTHER;
+                const CatIcon = catMeta.icon;
 
-                  <div className="min-w-0 flex-1">
-                    <p className="register-serif mb-1.5 truncate text-[15.5px] font-semibold text-[#1C2420]">
-                      {c.title}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <CategoryTag category={c.category} />
-                      <span className="text-xs text-[#6B6558]">filed by {c.citizenName}</span>
+                return (
+                  <div
+                    key={c.id}
+                    className="p-4 hover:bg-slate-800/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  >
+                    <div className="flex items-start gap-3.5 min-w-0">
+                      <div className={`p-2.5 rounded-xl border shrink-0 ${catMeta.bg}`}>
+                        <CatIcon size={18} className={catMeta.color} />
+                      </div>
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-slate-400">
+                            {docketNumber(c.id)}
+                          </span>
+                          <span className="text-slate-600">·</span>
+                          <span className="text-xs text-slate-500">{timeAgo(c.createdDate)}</span>
+                        </div>
+                        <h4 className="text-sm font-semibold text-white truncate">
+                          {c.title}
+                        </h4>
+                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                          <span className="capitalize">{catMeta.label}</span>
+                          <span>·</span>
+                          <span>filed by <strong className="text-slate-300">{c.citizenName || "Citizen"}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/50">
+                      <PriorityBadge priority={c.priority} />
+                      <StatusBadge status={c.status} />
                     </div>
                   </div>
+                );
+              })}
 
-                  <div className="flex flex-shrink-0 flex-col items-end gap-2">
-                    <StatusStamp status={c.status} />
-                    <PriorityDot priority={c.priority} />
-                  </div>
-                </div>
-              ))}
               {complaints.length === 0 && (
-                <p className="px-[18px] py-8 text-center text-sm text-[#6B6558]">
-                  No complaints filed yet.
-                </p>
+                <div className="p-12 text-center text-slate-500 text-sm">
+                  No grievances filed yet for this constituency.
+                </div>
               )}
             </div>
           </div>
 
-          {/* ---------------- Profile ID card ---------------- */}
-          <div className="w-full">
-            <p className="register-mono mb-3 text-[11px] uppercase tracking-[0.1em] text-[#6B6558]">
-              Office of record
-            </p>
-
-            <div className="w-full overflow-hidden rounded-[4px] border border-[#DDD6C2] bg-[#FBF9F2]">
-              <div
-                className="h-1.5 w-full"
-                style={{
-                  background: `linear-gradient(90deg, ${tokens.banyan}, ${tokens.marigold} 50%, ${tokens.seal})`,
-                }}
-              />
-
-              <div className="w-full p-[22px]">
-                <div className="mb-4 flex w-full items-start gap-3.5">
+          {/* Profile & Category Breakdown Sidebar (1 Column) */}
+          <div className="space-y-6">
+            {/* Representative Profile Card */}
+            <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-6 shadow-xl space-y-5 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-emerald-500 to-amber-500" />
+              
+              <div className="flex items-start gap-4">
+                {profile.photoUrl && (
                   <img
                     src={profile.photoUrl}
                     alt={profile.name}
-                    className="h-16 w-16 flex-shrink-0 rounded-[4px] border border-[#DDD6C2] object-cover"
+                    className="w-16 h-16 rounded-2xl object-cover border border-slate-700 shadow-md shrink-0"
                   />
-                  <div className="min-w-0">
-                    <p className="register-serif text-xl font-bold text-[#1C2420]">
-                      {profile.name}
-                    </p>
-                    <p className="mt-0.5 text-[12.5px] text-[#6B6558]">{profile.party}</p>
-                    {profile.verified && (
-                      <div className="mt-2 inline-flex items-center gap-1 rounded-[3px] border border-[#2F6B5433] bg-[#E4EEE7] px-[7px] py-[3px] font-mono text-[10.5px] uppercase tracking-[0.05em] text-[#2F6B54]">
-                        <BadgeCheck size={12} strokeWidth={2.5} />
-                        Verified office
-                      </div>
-                    )}
+                )}
+                <div>
+                  <h3 className="text-lg font-bold text-white">{profile.name}</h3>
+                  <p className="text-xs text-slate-400">{profile.party} Party Representative</p>
+                  {profile.verified && (
+                    <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <BadgeCheck size={13} /> Verified Office
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-4 border-t border-slate-800/80 text-xs text-slate-300">
+                {profile.phone && (
+                  <div className="flex items-center gap-2.5">
+                    <Phone size={14} className="text-slate-500 shrink-0" />
+                    <span>{profile.phone}</span>
                   </div>
-                </div>
-
-                <div className="flex w-full flex-col gap-2.5 border-t border-dashed border-[#DDD6C2] pt-3.5">
-                  <p className="flex items-center gap-2 text-[13.5px] text-[#3A4440]">
-                    <Phone size={14} className="text-[#6B6558]" />
-                    {profile.phone}
-                  </p>
-                  <p className="flex items-start gap-2 text-[13.5px] leading-snug text-[#3A4440]">
-                    <MapPin size={14} className="mt-0.5 flex-shrink-0 text-[#6B6558]" />
-                    {profile.officeAddress}
-                  </p>
-                </div>
-
-                {profile.bio && (
-                  <p className="mt-4 border-t border-dashed border-[#DDD6C2] pt-3.5 text-[12.5px] leading-relaxed text-[#6B6558]">
-                    {profile.bio}
-                  </p>
+                )}
+                {profile.officeAddress && (
+                  <div className="flex items-start gap-2.5 leading-relaxed">
+                    <MapPin size={14} className="text-slate-500 shrink-0 mt-0.5" />
+                    <span>{profile.officeAddress}</span>
+                  </div>
                 )}
               </div>
+
+              {profile.bio && (
+                <p className="text-xs text-slate-400 leading-relaxed pt-3 border-t border-slate-800/80">
+                  {profile.bio}
+                </p>
+              )}
             </div>
 
-            {/* Category breakdown — quiet secondary read */}
-            <div className="mt-[18px] w-full">
-              <p className="register-mono mb-2.5 text-[11px] uppercase tracking-[0.1em] text-[#6B6558]">
-                By category
-              </p>
-              <div className="flex w-full flex-col gap-2">
+            {/* Category Distribution */}
+            <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-6 shadow-xl space-y-4">
+              <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+                By Category Breakdown
+              </h4>
+
+              <div className="space-y-3.5">
                 {Object.entries(analytics.categoryBreakdown).map(([cat, count]) => {
                   const meta = categoryMeta[cat] || categoryMeta.OTHER;
-                  const Icon = meta.icon;
-                  const pct = Math.round((count / analytics.totalComplaints) * 100);
+                  const CatIcon = meta.icon;
+                  const pct =
+                    analytics.totalComplaints > 0
+                      ? Math.round((count / analytics.totalComplaints) * 100)
+                      : 0;
+
                   return (
-                    <div key={cat} className="flex w-full items-center gap-2">
-                      <Icon size={13} className="flex-shrink-0 text-[#6B6558]" />
-                      <span className="w-[78px] flex-shrink-0 text-[12.5px] text-[#3A4440]">
-                        {meta.label}
-                      </span>
-                      <div className="h-[5px] flex-1 overflow-hidden rounded-[3px] border border-[#DDD6C2] bg-[#F3F0E6]">
+                    <div key={cat} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 text-slate-300">
+                          <CatIcon size={14} className={meta.color} />
+                          <span>{meta.label}</span>
+                        </div>
+                        <span className="font-mono text-slate-400">{count} ({pct}%)</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-[#1C2420] opacity-75"
+                          className="h-full bg-blue-500 rounded-full transition-all duration-500"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <span className="register-mono w-4 text-right text-[11px] text-[#6B6558]">
-                        {count}
-                      </span>
                     </div>
                   );
                 })}

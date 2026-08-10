@@ -292,9 +292,9 @@ export async function getAnalytics(mlaId: string) {
     }
 }
 
-export async function getComplaints(mlaId: string) {
+export async function getComplaints(mlaId: number) {
     try {
-        let endPoint = `complaints/mla/${2}`;
+        let endPoint = `complaints/mla/${mlaId}`;
         let response = await instance.get(endPoint);
         return response;
     } catch (e) {
@@ -302,7 +302,7 @@ export async function getComplaints(mlaId: string) {
     }
 }
 
-export async function getMlaProfile(mlaId: string) {
+export async function getMlaProfile(mlaId: number) {
     try {
         let endPoint = `mla/${mlaId}`;
         let response = await instance.get(endPoint);

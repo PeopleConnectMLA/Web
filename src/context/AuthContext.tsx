@@ -4,7 +4,7 @@ import { loginAPI } from "../services";
 
 interface AuthContextValue {
   session: Session | null;
-  login: (mobile: string, password: string, role: Role) => Promise<Session>;
+  login: (mobile: string, password: string) => Promise<Session>;
   logout: () => void;
 }
 
@@ -16,9 +16,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return raw ? JSON.parse(raw) : null;
   });
 
-  async function login(mobile: string, password: string, role: Role): Promise<Session> {
+  async function login(mobile: string, password: string): Promise<Session> {
 
-    const response = await loginAPI({ mobile, password, role });
+    const response = await loginAPI({ mobile, password });
 
     console.log("loginAPI =", response);
 
