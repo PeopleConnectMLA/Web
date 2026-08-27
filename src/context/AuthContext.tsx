@@ -1,10 +1,10 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { login as apiLogin } from "../api/client";
 import type { Role, Session } from "../types";
+import { loginAPI } from "../services";
 
 interface AuthContextValue {
   session: Session | null;
-  login: (mobile: string, password: string, role: Role) => Promise<Session>;
+  login: (mobile: string, password: string) => Promise<Session>;
   logout: () => void;
 }
 
@@ -12,21 +12,30 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(() => {
-    const raw = localStorage.getItem("pcm_session");
+    const raw = sessionStorage.getItem("pcm_session");
     return raw ? JSON.parse(raw) : null;
   });
 
-  async function login(mobile: string, password: string, role: Role): Promise<Session> {
-    const data = await apiLogin({ mobile, password, role });
-    const s: Session = { name: data.name, role: data.role, userId: data.userId };
-    localStorage.setItem("pcm_session", JSON.stringify(s));
+  async function login(mobile: string, password: string): Promise<Session> {
+
+    const response = await loginAPI({ mobile, password });
+
+    console.log("loginAPI =", response);
+
+    const s: Session = {
+      token: response.data.token,
+      user: response.data.user,
+    };
+
+    sessionStorage.setItem("pcm_session", JSON.stringify(s));
     setSession(s);
+
     return s;
   }
 
   function logout() {
-    localStorage.removeItem("pcm_session");
-    localStorage.removeItem("pcm_token");
+    sessionStorage.removeItem("pcm_session");
+    sessionStorage.removeItem("pcm_token");
     setSession(null);
   }
 

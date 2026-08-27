@@ -28,7 +28,7 @@ export interface District {
 export interface Constituency {
   id: number;
   name: string;
-  districtId: number;
+  districtId: string;
   areasCovered?: string;
 }
 
@@ -62,6 +62,7 @@ export interface Complaint {
   createdDate: string;
   resolvedDate?: string;
   assignedOfficer?: string;
+  assignOfficerId?:number;
 }
 
 export interface Comment {
@@ -72,6 +73,8 @@ export interface Comment {
 }
 
 export interface Post {
+  likeCount: number;
+  mlaName: import("react").JSX.Element;
   id: number;
   title: string;
   description?: string;
@@ -84,6 +87,9 @@ export interface Post {
 }
 
 export interface Officer {
+  districtName: any;
+  constituencyName: any;
+  wardName: any;
   id: number;
   name: string;
 }
@@ -121,8 +127,69 @@ export interface AuthResponse {
   role: Role;
 }
 
-export interface Session {
+export interface User {
+  id: number;
   name: string;
-  role: Role;
-  userId: number;
+  mobile: string;
+  email: string;
+  role: string;
+  districtId: string;
+  constituencyId: string;
+  wardId: string | null;
+  area: string | null;
+  active: boolean;
+}
+
+export interface Session {
+  token: string;
+  user: User;
+}
+
+export interface Constituency {
+  id: number;
+  districtId: string;
+  constituencyName: string;
+  constituencyNameTa: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateMlaPayload {
+  name: string;
+  mobile: string;
+  email: string;
+  password: string;
+  party: string;
+  officeAddress: string;
+  photoUrl: string;
+  bio: string;
+  districtId: string;
+  constituencyId: string;
+}
+
+export interface ActiveDistrict {
+  id: string;
+  state: string;
+  districtName: string;
+  districtNameTa: string;
+  active: boolean;
+}
+
+export interface ActiveConstituency {
+  id: string;
+  districtId: string;
+  constituencyName: string;
+  constituencyNameTa: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Party {
+  id: number;
+  partyName: string;
+  shortName: string;
+  symbolUrl?: string;
+  active: boolean;
 }
